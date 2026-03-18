@@ -18,14 +18,16 @@ from Exceptions import ModelNotSupportedError
 class Nora(nn.Module):
 
     def __init__(self, 
-                 model_name = "llama-7b", 
-                 custom_model_path = None, 
-                 device: str = "auto",
+                                 
+                model_name = "llama-7b", 
+                custom_model_path = None, 
+                device: str = "auto",
                 dtype: str = "fp16",
                 load_in_8bit: bool = False,
                 load_in_4bit: bool = False,
                 use_flash_attention: bool = False,
-                max_seq_length: int = 4096
+                max_seq_length: int = 4096,
+                cmsConfig: CMSConfig = None
                  ):
         
         super().__init__()
@@ -36,6 +38,9 @@ class Nora(nn.Module):
                 f"Choose from: {list(SUPPORTED_MODELS.keys())} "
                 f"or provide a 'custom_model_path'."
             )
+
+        if cmsConfig is None:
+            raise ValueError("CMS Config not found while initializing")
 
         if dtype not in SUPPORTED_DTYPES:
             raise ValueError(
@@ -65,6 +70,9 @@ class Nora(nn.Module):
         self.model: Optional[LlamaForCausalLM] = None
         self.tokenizer = None
         self.config: Optional[LlamaConfig] = None
+
+        self._load_tokenizer()
+        self._load_model()
 
     def _load_tokenizer(self, tokenizerConfig: Optional[PreTrainedConfig] = None)->None:
         """Load the tokenizer corresponding to the chosen model."""
