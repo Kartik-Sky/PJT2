@@ -27,7 +27,7 @@ class CMSBlock(nn.Module):
             nn.Linear(config.dim * hidden_multiplier, config.dim),
         ]
         if config.use_batch_norm:
-            layers.append(nn.BatchNorm1d(config.dim))
+            layers.append(nn.LayerNorm(config.dim))
  
         self.mlp = nn.Sequential(*layers)
         self._update_frequency = update_frequency
@@ -52,7 +52,13 @@ class CMSBlock(nn.Module):
         Returns:
             Output tensor of shape (batch_size, dim) with residual added.
         """
-        return x + self.mlp(x)
+        B, S, H = x.shape
+
+        x_reshaped = x.view(B * S, H)     # (B*S, H)
+        out = self.mlp(x_reshaped)
+        out = out.view(B, S, H)
+
+        return x + out
  
  
 class CMSNet(nn.Module):

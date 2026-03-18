@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import numpy as np
 from typing import Optional, List, Tuple, Dict
+from config.CustomCLMConfig import NoraConfig
 from config.supported import SUPPORTED_MODELS, SUPPORTED_DTYPES
 from config.ModelSettings import CMSConfig
 from transformers import (
@@ -13,80 +14,71 @@ from transformers import (
     PreTrainedConfig,
 )
 from memory_module.cms import CMSNet
-from Exceptions import ModelNotSupportedError
+from Exceptions.ModelExceptions import ModelNotSupportedError
+from transformers.modeling_outputs import CausalLMOutputWithPast
+
 
 class Nora(nn.Module):
 
-    def __init__(self, 
-                                 
-                model_name = "llama-7b", 
-                custom_model_path = None, 
-                device: str = "auto",
-                dtype: str = "fp16",
-                load_in_8bit: bool = False,
-                load_in_4bit: bool = False,
-                use_flash_attention: bool = False,
-                max_seq_length: int = 4096,
-                cmsConfig: CMSConfig = None
-                 ):
+    def __init__(self, config: NoraConfig):
         
         super().__init__()
                 # ---- Validation ----
-        if custom_model_path is None and model_name not in SUPPORTED_MODELS:
+        if config.custom_model_path is None and config.model_name not in SUPPORTED_MODELS:
             raise ValueError(
-                f"Unsupported model '{model_name}'. "
+                f"Unsupported model '{config.model_name}'. "
                 f"Choose from: {list(SUPPORTED_MODELS.keys())} "
                 f"or provide a 'custom_model_path'."
             )
 
-        if cmsConfig is None:
+        if config.cms_cfg is None:
             raise ValueError("CMS Config not found while initializing")
-
-        if dtype not in SUPPORTED_DTYPES:
+        
+        if config.model_dtype not in SUPPORTED_DTYPES:
             raise ValueError(
-                f"Unsupported dtype '{dtype}'. Choose from: {list(SUPPORTED_DTYPES.keys())}"
+                f"Unsupported dtype '{config.model_dtype}'. Choose from: {list(SUPPORTED_DTYPES.keys())}"
             )
 
-        if load_in_8bit and load_in_4bit:
+        if config.load_in_8bit and config.load_in_4bit:
             raise ValueError("Cannot enable both 8-bit and 4-bit quantization simultaneously.")
 
-        if device not in ("auto", "cpu", "cuda") and not device.startswith("cuda:"):
+        if config.device not in ("auto", "cpu", "cuda") and not config.device.startswith("cuda:"):
             raise ValueError(
-                f"Unsupported device '{device}'. Use 'auto', 'cpu', 'cuda', or 'cuda:<id>'."
+                f"Unsupported device '{config.device}'. Use 'auto', 'cpu', 'cuda', or 'cuda:<id>'."
             )
 
-        if device != "auto" and device.startswith("cuda") and not torch.cuda.is_available():
+        if config.device != "auto" and config.device.startswith("cuda") and not torch.cuda.is_available():
             raise RuntimeError("CUDA device requested but CUDA is not available.")
 
-        self.model_name: str = model_name
-        self.model_path: str = custom_model_path or SUPPORTED_MODELS[model_name]
-        self.device_str: str = device
-        self.dtype: torch.dtype = SUPPORTED_DTYPES[dtype]
-        self.load_in_8bit: bool = load_in_8bit
-        self.load_in_4bit: bool = load_in_4bit
-        self.use_flash_attention: bool = use_flash_attention
-        self.max_seq_length: int = max_seq_length
+        self.model_name: str = config.model_name
+        self.model_path: str = config.custom_model_path or SUPPORTED_MODELS[config.model_name]
+        self.device_str: str = config.device
+        self.model_dtype: torch.dtype = SUPPORTED_DTYPES[config.model_dtype]
+        self.load_in_8bit: bool = config.load_in_8bit
+        self.load_in_4bit: bool = config.load_in_4bit
+        self.use_flash_attention: bool = config.use_flash_attention
+        self.max_seq_length: int = config.max_seq_length
         
         self.model: Optional[LlamaForCausalLM] = None
         self.tokenizer = None
         self.config: Optional[LlamaConfig] = None
 
         self._load_tokenizer()
-        self._load_model()
+        self._load_model(config.cms_cfg)
 
     def _load_tokenizer(self, tokenizerConfig: Optional[PreTrainedConfig] = None)->None:
         """Load the tokenizer corresponding to the chosen model."""
         try:
-            self.tokenizer = AutoTokenizer.from_pretrained(self.model_name, config = tokenizerConfig)
-        except:
-            raise Exception("Error Loading Tokenizer")
+            self.tokenizer = AutoTokenizer.from_pretrained(self.model_path, config = tokenizerConfig)
+        except Exception as e:
+            raise Exception("Error Loading Tokenizer: ", e)
         
 
     def _load_model(self, config: CMSConfig):
         """Load the model corresponding to the chosen model and add the CMS"""
         
         if (self.model_name is not None):
-            foundation_model = AutoModelForCausalLM.from_pretrained(self.model_name)
+            foundation_model = AutoModelForCausalLM.from_pretrained(self.model_path)
         elif (self.model_path is not None):
             try:
                 foundation_model = torch.load(self.model_path)
@@ -96,8 +88,8 @@ class Nora(nn.Module):
         else:
                 raise ModelNotSupportedError("Failed to initialize foundation_model. Please check the model_name or model_path")
         
-        self.cms = CMSNet(config = config)
         self.decoder = foundation_model.get_decoder()
+        self.cms = CMSNet(config = config).to(self.decoder.dtype)
         
         # Freezing the Parameters of the Decoder Network
         for param in self.decoder.parameters():
@@ -105,8 +97,31 @@ class Nora(nn.Module):
         
         self.lm_head = foundation_model.lm_head
     
-    def forward(self, input_ids, attention_mask, use_cache):
 
-        x = self.decoder(input_ids = input_ids, attention_mask = attention_mask, use_cache= use_cache)
-        x = self.cms(x)
-        return self.lm_head(x)
+    def forward(
+        self,
+        input_ids=None,
+        attention_mask=None,
+        past_key_values=None,
+        use_cache=True,
+        **kwargs
+    ):
+        outputs = self.decoder(
+            input_ids=input_ids,
+            attention_mask=attention_mask,
+            past_key_values=past_key_values,
+            use_cache=use_cache,
+            **kwargs
+        )
+
+        hidden_states = outputs.last_hidden_state          # ✅ tensor
+        past_key_values = outputs.past_key_values          # ✅ needed for generate
+
+        hidden_states = self.cms(hidden_states)            # ✅ now valid
+
+        logits = self.lm_head(hidden_states)
+
+        return CausalLMOutputWithPast(
+            logits=logits,
+            past_key_values=past_key_values,
+        )

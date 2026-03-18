@@ -1,21 +1,22 @@
-from transformers import PreTrainedModel, AutoModelForCausalLM
+from transformers import GenerationMixin, PreTrainedModel, AutoModelForCausalLM
 from transformers.modeling_outputs import CausalLMOutputWithPast
 from config.CustomCLMConfig import NoraConfig
 from config.ModelSettings import CMSConfig
-from Nora import Nora
+from model.Nora import Nora
 import torch.nn as nn
 
 
-class NoraCausalLM(PreTrainedModel):
+class NoraCausalLM(PreTrainedModel, GenerationMixin):
     config_class = NoraConfig
     
     def __init__(self, config: NoraConfig):
         super().__init__(config)
 
-        foundation = AutoModelForCausalLM.from_pretrained(config.model_path)
-        cms_cfg = CMSConfig(hidden_size=config.cms_hidden_size)
+        # foundation = AutoModelForCausalLM.from_pretrained(config.model_name)
 
-        self.nora = Nora(foundation, cms_cfg)
+        # print(config.cms_cfg)
+        
+        self.nora = Nora(config)
         self.lm_head = self.nora.lm_head  # expose for HF resize_token_embeddings
 
         self.post_init()
@@ -39,9 +40,9 @@ class NoraCausalLM(PreTrainedModel):
                 labels=None, use_cache=True, return_dict=True, **kwargs):
 
         # All real logic delegated to your inner class
-        hidden, past_key_values = self.nora(input_ids, attention_mask, use_cache)
-
-        logits = self.nora.lm_head(hidden)
+        nora_output = self.nora(input_ids, attention_mask, use_cache = use_cache)
+        # print(output)
+        logits = nora_output.logits
 
         loss = None
         if labels is not None:
@@ -54,3 +55,4 @@ class NoraCausalLM(PreTrainedModel):
             return (loss, logits, past_key_values) if loss else (logits, past_key_values)
 
         return CausalLMOutputWithPast(loss=loss, logits=logits, past_key_values=past_key_values)
+    
