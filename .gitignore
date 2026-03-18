@@ -1,0 +1,103 @@
+# =========================
+# Python
+# =========================
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+venv/
+.env/
+.env.*
+.venv/
+
+# =========================
+# Jupyter / Notebooks
+# =========================
+.ipynb_checkpoints
+
+# =========================
+# Logs & temp files
+# =========================
+*.log
+*.tmp
+*.swp
+*.bak
+
+# =========================
+# OS-specific
+# =========================
+.DS_Store
+Thumbs.db
+
+# =========================
+# IDE / Editor
+# =========================
+.vscode/
+.idea/
+*.sublime-workspace
+*.sublime-project
+
+# =========================
+# Git
+# =========================
+.git-credentials
+
+# =========================
+# Environment variables / secrets
+# =========================
+.env
+.env.local
+.env.*.local
+
+# =========================
+# ML / AI artifacts (IMPORTANT)
+# =========================
+# Model weights
+*.pt
+*.pth
+*.ckpt
+*.bin
+*.h5
+
+# HuggingFace / Transformers
+*.safetensors
+cache/
+hf_cache/
+transformers_cache/
+
+# Datasets
+data/
+datasets/
+*.csv
+*.tsv
+*.jsonl
+
+# Checkpoints
+checkpoints/
+outputs/
+runs/
+
+# TensorBoard
+events.out.tfevents.*
+
+# =========================
+# Build / dist
+# =========================
+build/
+dist/
+*.egg-info/
+
+# =========================
+# C/C++ (if you build stuff)
+# =========================
+*.o
+*.so
+*.out
+
+# =========================
+# Misc
+# =========================
+*.zip
+*.tar.gz
+*.rar
