@@ -61,12 +61,19 @@ class CMSAdamW(Optimizer):
         Returns:
             The loss value if a closure was provided, otherwise None.
         """
+
+        self.global_step += 1
+
+
         loss = None
         if closure is not None:
             with torch.enable_grad():
                 loss = closure()
 
         for group in self.param_groups:
+            
+            if ('frequency' not in group.keys()):
+                continue
             freq = group['frequency']
             if (self.global_step % freq != 0):
                 continue
@@ -87,7 +94,7 @@ class CMSAdamW(Optimizer):
 
                 # Decoupled weight decay
                 if weight_decay != 0.0:
-                    p.data.mul_(1.0 - lr * weight_decay)
+                    p.mul_(1.0 - lr * weight_decay)
 
                 # Update biased first and second moment estimates
                 exp_avg = state['exp_avg']
@@ -105,10 +112,8 @@ class CMSAdamW(Optimizer):
                 corrected_avg_sq = exp_avg_sq / bias_correction2
 
                 # Parameter update
-                p.data.add_(corrected_avg / (corrected_avg_sq.sqrt() + eps), alpha=-lr)
-
-        self.global_step += 1
-
+                p.add_(corrected_avg / (corrected_avg_sq.sqrt() + eps), alpha=-lr)
+                
         return loss
 
     @torch.no_grad()
@@ -122,14 +127,25 @@ class CMSAdamW(Optimizer):
             set_to_none: If True, set gradients to None instead of zeroing (default: True).
         """
         for group in self.param_groups:
-            group_freq = group['frequency']
-            if (self.global_step % group_freq == 0):
-                continue
-            for p in group['params']:
-                if set_to_none:
-                    p.grad=None
-                else:
-                    p.grad.zero_()
+            
+            if ('frequency' not in group.keys()):
+                for p in group['params']:
+                    
+                    if set_to_none:
+                        p.grad=None
+                    else:
+                        p.grad.zero_()
+
+            else:
+                group_freq = group['frequency']
+                if (self.global_step % group_freq == 0):
+                    continue
+                for p in group['params']:
+                    if p.grad is not None:
+                        if set_to_none:
+                            p.grad=None
+                        else:
+                            p.grad.zero_()
 
 
 

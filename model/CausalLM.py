@@ -39,9 +39,9 @@ class NoraCausalLM(PreTrainedModel, GenerationMixin):
     def forward(self, input_ids=None, attention_mask=None, past_key_values=None,
                 labels=None, use_cache=True, return_dict=True, **kwargs):
 
-        # All real logic delegated to your inner class
+
         nora_output = self.nora(input_ids, attention_mask, use_cache = use_cache)
-        # print(output)
+
         logits = nora_output.logits
 
         loss = None
@@ -55,4 +55,5 @@ class NoraCausalLM(PreTrainedModel, GenerationMixin):
             return (loss, logits, past_key_values) if loss else (logits, past_key_values)
 
         return CausalLMOutputWithPast(loss=loss, logits=logits, past_key_values=past_key_values)
+    
     
