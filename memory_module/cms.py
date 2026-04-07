@@ -42,7 +42,7 @@ class CMSBlock(nn.Module):
             True if the block should be updated at this step, False otherwise.
         """
         return idx % self._update_frequency == 0
- 
+    
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Forward pass with a residual MLP connection.
  
@@ -98,7 +98,7 @@ class CMSNet(nn.Module):
         Returns:
             Output tensor of shape (batch_size, dim).
         """
-        z = x.detach()
+        z = x
         for block in self.blocks.values():
             z = block(z)
         return x + z

@@ -105,7 +105,8 @@ def evaluate(model, dataloader, device="cuda"):
     perplexity = torch.exp(torch.tensor(avg_loss))
 
     return avg_loss, perplexity.item()
-device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 cms_config = CMSConfig(3072, 3, [1,2,3], [3,4,2], nn.GELU)
 
@@ -114,15 +115,17 @@ config = NoraConfig(model_name="llama-3.2-3b", cms_cfg=cms_config)
 AutoConfig.register("NORA", NoraConfig)
 AutoModelForCausalLM.register(NoraConfig, NoraCausalLM)
 model = AutoModelForCausalLM.from_config(config)
-for i in range(1,17):
+model.to(device)
+for i in range(2,3):
 
     checkpoint = torch.load(
-        f"/root/KartikGoyal/checkpoints/checkpoint_epoch_{i}.pt",
-        weights_only=False
+        f"/root/KartikGoyal/nora_experiment_v2/checkpoints/checkpoint_epoch_{i}.pt",
+        weights_only=False,
+        map_location="cuda"
     )
 
     model.load_state_dict(checkpoint["model_state_dict"])
-    model.to(device)
+    
 
 
     loss, ppl = evaluate(model, loader, device=device)

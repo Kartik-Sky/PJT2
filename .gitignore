@@ -24,6 +24,8 @@ venv/
 *.swp
 *.bak
 
+nora_experiment*/
+rag*/
 # =========================
 # OS-specific
 # =========================

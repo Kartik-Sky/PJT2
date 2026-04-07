@@ -37,7 +37,7 @@ AutoModelForCausalLM.register(NoraConfig, NoraCausalLM)
 
 model = AutoModelForCausalLM.from_config(config)
 checkpoint = torch.load(
-    "/root/KartikGoyal/checkpoints/checkpoint_epoch_7.pt",
+    "/root/KartikGoyal/nora_experiment_v2/checkpoints/checkpoint_epoch_2.pt",
     weights_only=False
 )
 
@@ -121,6 +121,7 @@ for epoch in range(num_epochs):
         )
 
         loss = output.loss
+
         loss.backward()
 
         optimizer.step()

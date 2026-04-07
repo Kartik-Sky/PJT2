@@ -148,6 +148,48 @@ class CMSAdamW(Optimizer):
                             p.grad.zero_()
 
 
+# class CMSAdamW(Optimizer):
+#     def __init__(self, params, lr=1e-3, betas=(0.9, 0.999), 
+#                  eps=1e-8, weight_decay=0.0, accum_steps=1):
+#         defaults = dict(lr=lr, betas=betas, eps=eps, weight_decay=weight_decay)
+#         self.global_step = 0
+#         self.accum_steps = accum_steps  # store it
+#         super().__init__(params, defaults)
 
+#     @torch.no_grad()
+#     def step(self, closure=None):
+#         self.global_step += 1
+
+#         # Effective step accounts for accumulation
+#         effective_step = self.global_step * self.accum_steps
+
+#         loss = None
+#         if closure is not None:
+#             with torch.enable_grad():
+#                 loss = closure()
+
+#         for group in self.param_groups:
+#             if 'frequency' not in group:
+#                 continue
+#             freq = group['frequency']
+#             if effective_step % freq != 0:
+#                 continue
+#             # ... rest of update unchanged
+
+#     @torch.no_grad()
+#     def zero_grad(self, set_to_none=True):
+#         effective_step = self.global_step * self.accum_steps
+
+#         for group in self.param_groups:
+#             if 'frequency' not in group:
+#                 for p in group['params']:
+#                     p.grad = None if set_to_none else p.grad.zero_()
+#             else:
+#                 group_freq = group['frequency']
+#                 if effective_step % group_freq == 0:
+#                     continue  # preserve gradients — update due
+#                 for p in group['params']:
+#                     if p.grad is not None:
+#                         p.grad = None if set_to_none else p.grad.zero_()
 
 

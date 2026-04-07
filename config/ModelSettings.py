@@ -45,4 +45,3 @@ class CMSConfig:
         if any(m < 1 for m in self.multipliers):
             raise ValueError("All multipliers must be >= 1")
  
- 
